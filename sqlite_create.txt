@@ -1,0 +1,238 @@
+activity_main.xml
+
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="16dp"
+    android:orientation="vertical">
+
+    <EditText
+        android:id="@+id/editId"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter ID (for update/delete)"
+        android:inputType="number"/>
+
+    <EditText
+        android:id="@+id/editName"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter Name"/>
+
+    <EditText
+        android:id="@+id/editAge"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter Age"
+        android:inputType="number"/>
+
+    <Button
+        android:id="@+id/btnAdd"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Add Data"/>
+
+    <Button
+        android:id="@+id/btnView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="View Data"/>
+
+    <Button
+        android:id="@+id/btnUpdate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Update Data"/>
+
+    <Button
+        android:id="@+id/btnDelete"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Delete Data"/>
+
+    <TextView
+        android:id="@+id/txtResults"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="16sp"
+        android:text="Results will be displayed here"/>
+</LinearLayout>
+
+
+MainActivity.java
+
+package com.example.sqllite;
+
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.os.Bundle;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
+import androidx.appcompat.app.AppCompatActivity;
+
+public class MainActivity extends AppCompatActivity {
+
+    DatabaseHelper myDb;
+    SQLiteDatabase db;
+    EditText editId, editName, editAge;
+    Button btnAdd, btnView, btnUpdate, btnDelete;
+    TextView txtResults;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        myDb = new DatabaseHelper(this);
+        db = myDb.getDatabase(); // Get SQLite database object
+
+        editId = findViewById(R.id.editId);
+        editName = findViewById(R.id.editName);
+        editAge = findViewById(R.id.editAge);
+        btnAdd = findViewById(R.id.btnAdd);
+        btnView = findViewById(R.id.btnView);
+        btnUpdate = findViewById(R.id.btnUpdate);
+        btnDelete = findViewById(R.id.btnDelete);
+        txtResults = findViewById(R.id.txtResults);
+
+        btnAdd.setOnClickListener(v -> insertData());
+        btnView.setOnClickListener(v -> getData());
+        btnUpdate.setOnClickListener(v -> updateData());
+        btnDelete.setOnClickListener(v -> deleteData());
+
+        if (db != null) {
+            Toast.makeText(this, "Database Created!", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    public void insertData() {
+        String name = editName.getText().toString();
+        String age = editAge.getText().toString();
+        boolean inserted = myDb.insertData(name, age);
+        Toast.makeText(this, inserted ? "Data Inserted" : "Insertion Failed", Toast.LENGTH_SHORT).show();
+    }
+
+    public void getData() {
+        Cursor res = myDb.getData();
+        StringBuilder buffer = new StringBuilder();
+        while (res.moveToNext()) {
+            buffer.append("ID: ").append(res.getString(0)).append("\n");
+            buffer.append("Name: ").append(res.getString(1)).append("\n");
+            buffer.append("Age: ").append(res.getString(2)).append("\n\n");
+        }
+        txtResults.setText(buffer.toString());
+    }
+
+    public void updateData() {
+        String id = editId.getText().toString();
+        String name = editName.getText().toString();
+        String age = editAge.getText().toString();
+        boolean updated = myDb.updateData(id, name, age);
+        Toast.makeText(this, updated ? "Data Updated" : "Update Failed", Toast.LENGTH_SHORT).show();
+    }
+
+    public void deleteData() {
+        String id = editId.getText().toString();
+        int deletedRows = myDb.deleteData(id);
+        Toast.makeText(this, deletedRows > 0 ? "Data Deleted" : "Delete Failed", Toast.LENGTH_SHORT).show();
+    }
+}
+
+
+DatabaseHelper.java
+
+
+package com.example.sqllite;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteOpenHelper;
+
+public class DatabaseHelper extends SQLiteOpenHelper {
+    public static final String DATABASE_NAME = "People.db";
+    public static final String TABLE_NAME = "person";
+    public static final String COL_1 = "ID";
+    public static final String COL_2 = "NAME";
+    public static final String COL_3 = "AGE";
+
+    private SQLiteDatabase database;
+
+    public DatabaseHelper(Context context) {
+        super(context, DATABASE_NAME, null, 1);
+        database = this.getWritableDatabase(); // Creates or opens the database
+    }
+
+    @Override
+    public void onCreate(SQLiteDatabase db) {
+        db.execSQL("CREATE TABLE " + TABLE_NAME + " (ID INTEGER PRIMARY KEY AUTOINCREMENT, NAME TEXT, AGE INTEGER)");
+    }
+
+    @Override
+    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
+        db.execSQL("DROP TABLE IF EXISTS " + TABLE_NAME);
+        onCreate(db);
+    }
+
+    // Getter method for accessing the SQLiteDatabase object
+    public SQLiteDatabase getDatabase() {
+        return database;
+    }
+
+    // Insert data method
+    public boolean insertData(String name, String age) {
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(COL_2, name);
+        contentValues.put(COL_3, age);
+        long result = database.insert(TABLE_NAME, null, contentValues);
+        return result != -1;
+    }
+
+    // Retrieve data method
+    public Cursor getData() {
+        return database.rawQuery("SELECT * FROM " + TABLE_NAME, null);
+    }
+
+    // Update data method
+    public boolean updateData(String id, String name, String age) {
+        ContentValues contentValues = new ContentValues();
+        contentValues.put(COL_2, name);
+        contentValues.put(COL_3, age);
+        int result = database.update(TABLE_NAME, contentValues, "ID = ?", new String[]{id});
+        return result > 0;
+    }
+
+    // Delete data method
+    public int deleteData(String id) {
+        return database.delete(TABLE_NAME, "ID = ?", new String[]{id});
+    }
+}
+
+
+AndroidManifest.xml
+
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.example.sqllite">
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.SQLlite">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
